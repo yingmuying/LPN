@@ -3,13 +3,13 @@ matplotlib.use('Agg')
 from captcha.image import ImageCaptcha
 import matplotlib.pyplot as plt
 import numpy as np
+from keras.utils import to_categorical
 import random
 import string
 
-
-
 characters = string.digits + string.ascii_uppercase
 batch_size = 32
+
 '''
 I want to first generate a license plate like captcha with width and height and length is just exactly same to Taiwan's law.
 Then,I define the size of X and Y
@@ -34,5 +34,19 @@ def captcha_Generator():
         plt.title(random_str)
         plt.savefig('/home/wan/png/'+random_str+'.png')
         yield X, y
-for i in range(batch_size):
-    X , y=next(captcha_Generator())
+
+'''
+encoder and decoder is two function converting between one-hot and number
+'''
+
+def encoder(number):
+    return to_categorical(number)
+
+def decoder(onehot):
+    return np.argmax(onehot)
+
+
+
+
+#for i in range(batch_size):
+#    X , y=next(captcha_Generator())
