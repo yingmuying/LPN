@@ -3,40 +3,37 @@ matplotlib.use('Agg')
 from captcha.image import ImageCaptcha
 import matplotlib.pyplot as plt
 import numpy as np
+from keras import backend as K
 from keras.utils import to_categorical
-from keras.models import Sequential
-from keras.layers import Dense,Activation,Convolution2D,MaxPooling2D,Flatten
+from keras.models import Model , Sequential
+from keras.layers import Dropout,Input,Dense,Activation,Convolution2D,MaxPooling2D,Flatten
 import random
 import string
 
 characters = string.digits + string.ascii_uppercase
 batch_size = 32
-
+width, height, n_len ,n_class= 190, 80, 7, len(characters)
 '''
 Capcha Generator
 First generate a license plate like captcha with width and height and length is just exactly same to Taiwan's law.
 Define the size of X and Y.
 Enable to keep asking for encoded X and y.
 '''
-
-def cap_Gen():
-    
-    width, height, n_len ,n_class= 190, 80, 7, len(characters)
-    X = np.zeros((height, width, 3), dtype=np.uint8)
-    #I don't know the meaning of 3 here. maybe channel?
-    y = [np.zeros((n_class), dtype=np.uint8) for i in range(n_len)]
+def gen(batch_size=32):
+    X = np.zeros((batch_size, height, width, 3), dtype=np.uint8)
+    y = [np.zeros((batch_size, n_class), dtype=np.uint8) for i in range(n_len)]
     generator = ImageCaptcha(width=width, height=height)
     while True:
-        random_str = ''.join([random.choice(characters) for j in range(n_len)])
-        X = generator.generate_image(random_str)
-        #Here comes a enumerate for lood which can output j as index and enumerate ch in list
-        for j, ch in enumerate(random_str):
-            y[j][:] = 0
-            y[j][characters.find(ch)] = 1
-        plt.imshow(X)
-        plt.title(random_str)
-        plt.savefig('/home/wan/png/'+random_str+'.png')
+        for i in range(batch_size):
+            random_str = ''.join([random.choice(characters) for j in range(4)])
+            X[i] = generator.generate_image(random_str)
+            for j, ch in enumerate(random_str):
+                y[j][i, :] = 0
+                y[j][i, characters.find(ch)] = 1
+        X = np.reshape(X , (batch_size , width , height , 3))
         yield X, y
+
+
 
 '''
 decoder is for changing between one-hot and character
@@ -49,12 +46,29 @@ def decode(y):
 Build Model
 '''
 
-model = Sequential()
-for i in range(4)
-    model.add(Convolution2D(32*2**i, kernel_size = 3, activation='relu'))
-    model.add(Convolution2D(32*2**i, kernel_size = 3, activation='relu'))
-    model.add(MaxPooling2D(pool_size=2))
+input_tensor = Input((width, height, 3))
+x = input_tensor
+for i in range(3):
+    x = Convolution2D(32*2**i, (3, 3), activation="relu")(x)
+    x = Convolution2D(32*2**i, (3, 3), activation='relu')(x)
+    x = MaxPooling2D(pool_size=2)(x)
 
-model.add(Flatten())
-model.add(dropout(0.25))
+x = Flatten()(x)
+x = Dropout(0.25)(x)
+x = [Dense(n_class, activation='softmax', name='c%d'%(i+1))(x) for i in range(n_len)]
+model = Model(inputs=input_tensor , outputs=x)
 
+model.compile(loss='categorical_crossentropy',
+                optimizer='adadelta',
+                metrics=['accuracy'])
+
+model.fit_generator(generator=gen(), 
+                    steps_per_epoch=51200, 
+                    epochs=5, 
+                    workers=2, 
+                    pickle_safe=True, 
+                    validation_data=gen(), 
+                    validation_steps=1280)
+
+#X, y = next(gen(1))
+#y_pred = model.predict(X)
