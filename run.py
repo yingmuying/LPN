@@ -38,7 +38,7 @@ if LPN_input!=None:
 else:
     n = GetRandNum(number)
     e_n = GetRandNum(english_num,False)# not digits
-    print(n,e_n)
+    print(e_n,n)
     blankimg = Create_blank(width * number + (number-1) * interval , height)
     blankimg_en = Create_blank(width * english_num + (english_num-1) * interval , height)
     #blankimg_all = Create_blank(width * (number + english_num) +(number+ english_num - 2) * 4 ,height)
@@ -47,11 +47,11 @@ else:
     img = CombineImage(blankimg,n,"digits")
     img_en = CombineImage(blankimg_en,e_n,"english")
 
-    combine_img = CombineTwoImage(img,img_en)
+    combine_img = CombineTwoImage(img_en,img)
 combine_img = Addhat(combine_img,interval)
 (h,w) = combine_img.shape[:2]
 
-print(w,w * resize_zoom ,h, h*resize_zoom)
+#print(w,w * resize_zoom ,h, h*resize_zoom)
 
 if options.erode:
     combine_img = Erode(combine_img,se)
@@ -59,10 +59,13 @@ if options.dilate:
     combine_img = Dilate(combine_img,se)
 
 # Resize the img size
-resize_img = cv2.resize(combine_img, (int(w * resize_zoom) ,int( h * resize_zoom) ), interpolation=cv2.INTER_AREA)
-#cv2.imshow("resize",resize_img)
-cv2.imwrite("./resize.jpg" , resize_img)
+#resize_img = cv2.resize(combine_img, (int(w * resize_zoom) ,int( h * resize_zoom) ), interpolation=cv2.INTER_AREA)
 
+resize_img = cv2.resize(combine_img, (190 ,80), interpolation=cv2.INTER_AREA)
+#cv2.imshow("resize",resize_img)
+(h , w) = resize_img.shape[:2]
+print(w,h)
+cv2.imwrite("./resize.jpg" , resize_img)
 if options.create:
     cv2.imwrite(LPN_input+'_fake.jpg',resize_img)
 cv2.waitKey(0) 
