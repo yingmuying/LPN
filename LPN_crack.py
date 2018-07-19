@@ -1,4 +1,5 @@
 #-*- coding: utf-8 -*-
+
 import matplotlib
 from create_num import *
 import sys
@@ -26,7 +27,6 @@ import opt
 from optparse import OptionParser
 from erode_dilate import *
 from tqdm import tqdm
-
 '''
 parameters
 '''
@@ -35,10 +35,7 @@ OUTPUT_DIR = 'data'
 (options, args) = parser.parse_args()
 characters = string.digits + string.ascii_uppercase
 n_class = len(characters)
-
-print (characters)
-print (n_class)
-
+width , height =  247 , 107
 rnn_size = 128
 n_len = 7
 
@@ -48,44 +45,53 @@ def ctc_lambda_func(args):
     return K.ctc_batch_cost(labels, y_pred, input_length, label_length)
 
 def LBNgen(n , e_n):
-    #n = GetRandNum(number)
-    #e_n = GetRandNum(english_num,False)
-    print(n,e_n)
-    blankimg = Create_blank(width * number + (number-1) * interval , height)
-    blankimg_en = Create_blank(width * english_num + (english_num-1) * interval , height)
+    n = GetRandNum(number)
+    e_n = GetRandNum(english_num,False)
+    #print("Generating image.....")
+    #print(n,e_n)
+    blankimg = Create_blank(57 * number + (number-1) * interval , 107)
+    blankimg_en = Create_blank(57 * english_num + (english_num-1) * interval , 107)
 
     img = CombineImage(blankimg,n,"digits")
     img_en = CombineImage(blankimg_en,e_n,"english")
+    #cv2.imwrite("./img.jpg" , img)
+    #cv2.imwrite("./img_en" , img_en)
     combine_img = CombineTwoImage(img,img_en)
+    
     combine_img = Addhat(combine_img,interval)
     (h,w) = combine_img.shape[:2]
     #print(w,w * resize_zoom ,h, h*resize_zoom)
-    resize_img = cv2.resize(combine_img, (190 ,80), interpolation=cv2.INTER_AREA)
+    #cv2.imwrite("./comb.jpg" , combine_img)
+
+    resize_img = cv2.resize(combine_img, (width ,height), interpolation=cv2.INTER_AREA)
     
-    cv2.imwrite("./test.jpg" , resize_img)
+    #cv2.imwrite("./resize.jpg" , resize_img)
     #print(resize_img.shape)
     return resize_img
     #cv2.waitKey(0)
     
 def gen(batch_size=32):
-    X = np.zeros((batch_size, 80, 190, 3), dtype=np.uint8)
-    y = [np.zeros((batch_size, n_class), dtype=np.uint8) for i in range(7)]
-    print("hihihiiihihihihihi")
-    print (len(y))
+    X = np.zeros((batch_size , width, height, 3), dtype=np.uint8)
+    #y = [np.zeros((batch_size, n_class), dtype=np.uint8) for i in range(7)]
+    y = np.zeros((batch_size , n_len), dtype=np.uint8)
+    #print("generating data.....")
+    #print (len(y))
     
     while True:
         for i in range(batch_size):
-            print ("i = "),
-            print (i)
+            #print ("i = "),
+            #print (i)
             n = GetRandNum(number)
             e_n = GetRandNum(english_num,False)
             random_str = n+e_n
-            X[i] = LBNgen(n , e_n)
+            #X[i] = LBNgen(n , e_n)
+            X[i] = np.array(LBNgen(n , e_n)).transpose(1, 0, 2)
             y[i] = [characters.find(x) for x in random_str]
-            print (y[i])
+            #print (y[i])
             
-        yield X , y
-
+        #yield X , y
+        yield [X, y, np.ones(batch_size)*int(conv_shape[1]-2), 
+                               np.ones(batch_size)*n_len], np.ones(batch_size)
 #X , y = next(gen(1))
 #print (y)
 
@@ -109,7 +115,7 @@ class Evaluate(keras.callbacks.Callback):
         acc = evaluate(base_model)*100
         self.accs.append(acc)
         print
-        print 'acc: %f%%'%acc
+        print ('acc: %f%%'%acc)
 
 evaluator = Evaluate()
 
@@ -131,30 +137,38 @@ x = Dense(32, activation='relu')(x)
 gru_1 = GRU(128, return_sequences=True, kernel_initializer="he_normal", name="gru1")(x)
 gru_1b = GRU(128, go_backwards=True, kernel_initializer="he_normal", name="gru1_b", return_sequences=True)(x)
 
-#gru1_merged = merge([gru_1, gru_1b], mode='sum')
 gru1_merged = keras.layers.Add()([gru_1, gru_1b])
 
 gru_2 = GRU(128, return_sequences=True, kernel_initializer="he_normal", name="gru2")(gru1_merged)
 gru_2b = GRU(128, go_backwards=True, kernel_initializer="he_normal", 
         name="gru2_b", return_sequences=True)(gru1_merged)
-#x = merge([gru_2, gru_2b], mode='concat')
+
 keras.layers.Concatenate(axis=-1)
+
 x = Dropout(0.25)(x)
-x = Dense(36, activation="softmax", kernel_initializer="he_normal")(x)
+x = Dense(n_class+1, activation="softmax", kernel_initializer="he_normal")(x)
 base_model = Model(inputs=input_tensor, outputs=x)
 
 labels = Input(name='the_labels', shape=[n_len], dtype='float32')
 input_length = Input(name='input_length', shape=[1], dtype='int64')
 label_length = Input(name='label_length', shape=[1], dtype='int64')
 loss_out = Lambda(ctc_lambda_func, output_shape=(1,), 
-                          name='ctc')([x, labels, input_length, label_length])
+                                  name='ctc')([x, labels, input_length, label_length])
 
 model = Model(inputs=[input_tensor, labels, input_length, label_length], outputs=[loss_out])
 model.compile(loss={'ctc': lambda y_true, y_pred: y_pred}, optimizer='adadelta')
 
-model.fit_generator(gen(), steps_per_epoch=51200, epochs=200,
+plot_model(model, to_file="model.png", show_shapes=True)
+Image('model.png')
+
+model.fit_generator(gen(), steps_per_epoch=5120, epochs=20,
                             callbacks=[EarlyStopping(patience=10), evaluator],
                                                 validation_data=gen(), validation_steps=1280)
+#plot(model, to_file="model.png", show_shapes=True)
+#Image('model.png')
 
-plot(model, to_file="model.png", show_shapes=True)
-Image('model.png')
+model.save('my_model.h5')
+del model
+
+
+

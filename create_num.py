@@ -5,7 +5,7 @@ from random import randint
 #CONST
 height = 107
 width = 57
-number = 4
+number = 4 
 english_num= 3
 interval = 8
 english_map = dict(zip((0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25),('A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z')))
@@ -64,7 +64,7 @@ def CombineTwoImage(img1,img2):
     blank_image[:h1,:w1,:3] = img1
     blank_image[:h2,w1:w1+w2,:3] = img2
     #cv2.imshow("CombineTwo",blank_image)
-    cv2.imwrite("/home/wan/Desktop/ITRI_INTERN/SplitEnglish/combinetwo.jpg" , blank_image)
+    #cv2.imwrite("/home/wan/Desktop/ITRI_INTERN/SplitEnglish/combinetwo.jpg" , blank_image)
     return blank_image
 
 def ClearCombineImage(img):
@@ -102,4 +102,7 @@ def PerspectiveImage(img,name):
     h , mask = cv2.findHomography(img1,img2)
     out = cv2.warpPerspective(img,h,(800,800))
     #cv2.imshow(name,out)
-     
+
+#def Extention(img):
+    
+
