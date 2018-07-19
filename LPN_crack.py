@@ -27,23 +27,28 @@ import opt
 from optparse import OptionParser
 from erode_dilate import *
 from tqdm import tqdm
+import keras.losses
 '''
 parameters
 '''
 parser = OptionParser()
 OUTPUT_DIR = 'data'
-(options, args) = parser.parse_args()
+#(options, args) = parser.parse_args()
 characters = string.digits + string.ascii_uppercase
 n_class = len(characters)
 width , height =  247 , 107
 rnn_size = 128
 n_len = 7
 
+opts = opt.parse_opt()
+
+print(opts.modelname)
+
 def ctc_lambda_func(args):
     y_pred, labels, input_length, label_length = args
     y_pred = y_pred[:, 2:, :]
     return K.ctc_batch_cost(labels, y_pred, input_length, label_length)
-
+keras.losses.custom_loss = ctc_lambda_func
 def LBNgen(n , e_n):
     n = GetRandNum(number)
     e_n = GetRandNum(english_num,False)
@@ -154,21 +159,27 @@ input_length = Input(name='input_length', shape=[1], dtype='int64')
 label_length = Input(name='label_length', shape=[1], dtype='int64')
 loss_out = Lambda(ctc_lambda_func, output_shape=(1,), 
                                   name='ctc')([x, labels, input_length, label_length])
+if(opts.modelname == None):
+    model = Model(inputs=[input_tensor, labels, input_length, label_length], outputs=[loss_out]) 
+    model.compile(loss={'ctc': lambda y_true, y_pred: y_pred}, optimizer='adadelta')
+else:
+    model = load_model(opts.modelname ,custom_objects = {'<lambda>': lambda y_true, y_pred: y_pred})
+    #model.compile(loss={'ctc': lambda y_true, y_pred: y_pred}, optimizer='adadelta')
+    #model = model_from_json(open(modelFile).read())
+    #model.load_weights(os.path.join(os.path.dirname(my_model.h5), 'my_model.h5'))
+    
 
-model = Model(inputs=[input_tensor, labels, input_length, label_length], outputs=[loss_out])
-model.compile(loss={'ctc': lambda y_true, y_pred: y_pred}, optimizer='adadelta')
 
-plot_model(model, to_file="model.png", show_shapes=True)
-Image('model.png')
+#plot_model(model, to_file="model.png", show_shapes=True)
+#Image('model.png')
 
-model.fit_generator(gen(), steps_per_epoch=5120, epochs=20,
+model.fit_generator(gen(), steps_per_epoch=51200, epochs=1,
                             callbacks=[EarlyStopping(patience=10), evaluator],
                                                 validation_data=gen(), validation_steps=1280)
 #plot(model, to_file="model.png", show_shapes=True)
 #Image('model.png')
-
-model.save('my_model.h5')
+if(opts.modelname == None):
+    model.save("my_model.h5")
+else:
+    model.save(opts.modelname)
 del model
-
-
-
