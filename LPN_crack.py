@@ -95,17 +95,17 @@ def gen(batch_size=32):
 #X , y = next(gen(1))
 #print (y)
 
-def evaluate(model , batch_num=32):
+def evaluate(model , batch_num=10):
     batch_acc = 0
-    generator = gen(batch_num)
+    generator = gen()
     for i in range(batch_num):
         [X_test, y_test, _, _], _  = next(generator)
         y_pred = base_model.predict(X_test)
         shape = y_pred[:,2:,:].shape
         ctc_decode = K.ctc_decode(y_pred[:,2:,:], input_length=np.ones(shape[0])*shape[1])[0][0]
-        out = K.get_value(ctc_decode)[:, :4]
-        if out.shape[1] == 4:
-            batch_acc += ((y_test == out).sum(axis=1) == 4).mean()
+        out = K.get_value(ctc_decode)[:, :7]
+        if out.shape[1] == 7:
+            batch_acc += ((y_test == out).sum(axis=1) == 7).mean()
     return batch_acc / batch_num
 
 class Evaluate(keras.callbacks.Callback):
