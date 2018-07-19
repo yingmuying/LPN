@@ -95,7 +95,7 @@ def gen(batch_size=32):
 #X , y = next(gen(1))
 #print (y)
 
-def evaluator(model , batch_num=32):
+def evaluate(model , batch_num=32):
     batch_acc = 0
     generator = gen(batch_num)
     for i in range(batch_num):
