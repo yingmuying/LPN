@@ -35,13 +35,19 @@ parser = OptionParser()
 OUTPUT_DIR = 'data'
 #(options, args) = parser.parse_args()
 characters = string.digits + string.ascii_uppercase
+
+characters = characters.replace('I' , '')
+characters = characters.replace('O' , '')
+characters = characters.replace('4' , '')
+
+print(characters)
 n_class = len(characters)
 width , height =  247 , 107
 rnn_size = 128
 n_len = 7
 
 opts = opt.parse_opt()
-
+print("Using model name:"),
 print(opts.modelname)
 
 def ctc_lambda_func(args):
@@ -125,8 +131,6 @@ class Evaluate(keras.callbacks.Callback):
 evaluator = Evaluate()
 
 
-
-
 input_tensor = Input((width, height, 3))
 x = input_tensor
 for i in range(3):
@@ -142,13 +146,14 @@ x = Dense(32, activation='relu')(x)
 gru_1 = GRU(128, return_sequences=True, kernel_initializer="he_normal", name="gru1")(x)
 gru_1b = GRU(128, go_backwards=True, kernel_initializer="he_normal", name="gru1_b", return_sequences=True)(x)
 
-gru1_merged = keras.layers.Add()([gru_1, gru_1b])
+gru1_merged = add([gru_1, gru_1b])
 
 gru_2 = GRU(128, return_sequences=True, kernel_initializer="he_normal", name="gru2")(gru1_merged)
 gru_2b = GRU(128, go_backwards=True, kernel_initializer="he_normal", 
         name="gru2_b", return_sequences=True)(gru1_merged)
 
-keras.layers.Concatenate(axis=-1)
+x = concatenate([gru_2, gru_2b])
+
 
 x = Dropout(0.25)(x)
 x = Dense(n_class+1, activation="softmax", kernel_initializer="he_normal")(x)
@@ -164,14 +169,10 @@ if(opts.modelname == None):
     model.compile(loss={'ctc': lambda y_true, y_pred: y_pred}, optimizer='adadelta')
 else:
     model = load_model(opts.modelname ,custom_objects = {'<lambda>': lambda y_true, y_pred: y_pred})
-    #model.compile(loss={'ctc': lambda y_true, y_pred: y_pred}, optimizer='adadelta')
-    #model = model_from_json(open(modelFile).read())
-    #model.load_weights(os.path.join(os.path.dirname(my_model.h5), 'my_model.h5'))
     
 
-
-#plot_model(model, to_file="model.png", show_shapes=True)
-#Image('model.png')
+plot_model(model, to_file="model.png", show_shapes=True)
+Image('model.png')
 
 model.fit_generator(gen(), steps_per_epoch=51200, epochs=1,
                             callbacks=[EarlyStopping(patience=10), evaluator],
