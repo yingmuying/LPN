@@ -1,5 +1,4 @@
 #-*- coding: utf-8 -*-
-
 import matplotlib
 from create_num import *
 import sys
@@ -28,33 +27,40 @@ from optparse import OptionParser
 from erode_dilate import *
 from tqdm import tqdm
 import keras.losses
+
 '''
 parameters
 '''
 parser = OptionParser()
-OUTPUT_DIR = 'data'
-#(options, args) = parser.parse_args()
 characters = string.digits + string.ascii_uppercase
-
+'''
+remove illegel characters including 'I','O','4' in Taiwan.
+'''
 characters = characters.replace('I' , '')
 characters = characters.replace('O' , '')
 characters = characters.replace('4' , '')
-
-print(characters)
+#print(characters)
 n_class = len(characters)
-width , height =  247 , 107
-rnn_size = 128
-n_len = 7
 
-opts = opt.parse_opt()
+width , height =  247 , 107     
+rnn_size = 128                  
+n_len = 7                       #length of Taiwan License Number
+
+opts = opt.parse_opt()          #parameters
 print("Using model name:"),
 print(opts.modelname)
+
+'''
+our loss function
+'''
 
 def ctc_lambda_func(args):
     y_pred, labels, input_length, label_length = args
     y_pred = y_pred[:, 2:, :]
     return K.ctc_batch_cost(labels, y_pred, input_length, label_length)
-keras.losses.custom_loss = ctc_lambda_func
+'''
+image generator
+'''
 def LBNgen(n , e_n):
     n = GetRandNum(number)
     e_n = GetRandNum(english_num,False)
@@ -81,6 +87,10 @@ def LBNgen(n , e_n):
     return resize_img
     #cv2.waitKey(0)
     
+'''
+generator of model
+'''
+
 def gen(batch_size=32):
     X = np.zeros((batch_size , width, height, 3), dtype=np.uint8)
     #y = [np.zeros((batch_size, n_class), dtype=np.uint8) for i in range(7)]
@@ -114,9 +124,9 @@ def evaluate(model , batch_num=10):
         y_pred = base_model.predict(X_test)
         shape = y_pred[:,2:,:].shape
         ctc_decode = K.ctc_decode(y_pred[:,2:,:], input_length=np.ones(shape[0])*shape[1])[0][0]
-        out = K.get_value(ctc_decode)[:, :7]
-        if out.shape[1] == 7:
-            batch_acc += ((y_test == out).sum(axis=1) == 7).mean()
+        out = K.get_value(ctc_decode)[:, :n_len]
+        if out.shape[1] == n_len:
+            batch_acc += ((y_test == out).sum(axis=1) == n_len).mean()
     return batch_acc / batch_num
 
 class Evaluate(keras.callbacks.Callback):
