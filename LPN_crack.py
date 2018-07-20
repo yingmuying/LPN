@@ -5,6 +5,7 @@ import sys
 matplotlib.use('Agg')
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+#os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 from keras import backend as K
 import numpy as np
 from keras.layers.convolutional import Convolution2D , Conv2D, MaxPooling2D
@@ -26,8 +27,7 @@ import opt
 from optparse import OptionParser
 from erode_dilate import *
 from tqdm import tqdm
-import keras.losses
-
+#import keras.losses
 '''
 parameters
 '''
@@ -64,7 +64,6 @@ image generator
 def LBNgen(n , e_n):
     n = GetRandNum(number)
     e_n = GetRandNum(english_num,False)
-    #print("Generating image.....")
     #print(n,e_n)
     blankimg = Create_blank(57 * number + (number-1) * interval , 107)
     blankimg_en = Create_blank(57 * english_num + (english_num-1) * interval , 107)
@@ -74,7 +73,6 @@ def LBNgen(n , e_n):
     #cv2.imwrite("./img.jpg" , img)
     #cv2.imwrite("./img_en" , img_en)
     combine_img = CombineTwoImage(img,img_en)
-    
     combine_img = Addhat(combine_img,interval)
     (h,w) = combine_img.shape[:2]
     #print(w,w * resize_zoom ,h, h*resize_zoom)
@@ -85,7 +83,6 @@ def LBNgen(n , e_n):
     #cv2.imwrite("./resize.jpg" , resize_img)
     #print(resize_img.shape)
     return resize_img
-    #cv2.waitKey(0)
     
 '''
 generator of model
@@ -174,21 +171,23 @@ input_length = Input(name='input_length', shape=[1], dtype='int64')
 label_length = Input(name='label_length', shape=[1], dtype='int64')
 loss_out = Lambda(ctc_lambda_func, output_shape=(1,), 
                                   name='ctc')([x, labels, input_length, label_length])
+
+#sgd = SGD(lr=0.02, decay=1e-6, momentum=0.9, nesterov=True, clipnorm=5)
+
 if(opts.modelname == None):
     model = Model(inputs=[input_tensor, labels, input_length, label_length], outputs=[loss_out]) 
     model.compile(loss={'ctc': lambda y_true, y_pred: y_pred}, optimizer='adadelta')
+    #model.compile(loss={'ctc': lambda y_true, y_pred: y_pred}, optimizer='sgd')
 else:
     model = load_model(opts.modelname ,custom_objects = {'<lambda>': lambda y_true, y_pred: y_pred})
     
 
-plot_model(model, to_file="model.png", show_shapes=True)
-Image('model.png')
+#plot_model(model, to_file="model.png", show_shapes=True)
+#Image('model.png')
 
-model.fit_generator(gen(), steps_per_epoch=51200, epochs=1,
+model.fit_generator(gen(), steps_per_epoch=opts.steps, epochs=opts.epochs,
                             callbacks=[EarlyStopping(patience=10), evaluator],
                                                 validation_data=gen(), validation_steps=1280)
-#plot(model, to_file="model.png", show_shapes=True)
-#Image('model.png')
 if(opts.modelname == None):
     model.save("my_model.h5")
 else:
