@@ -23,6 +23,10 @@ def parse_opt():
 
     parser.add_argument('--testing' , default = False , type = bool , dest = "testing",
             help = "train or test")
+    parser.add_argument('--testimage' , default = False , type = bool , dest = "testimage",
+            help = "name of the image you want to test")
+
+
     args = parser.parse_args()
     return args
 

@@ -5,7 +5,6 @@ import sys
 matplotlib.use('Agg')
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-#os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 from keras import backend as K
 import numpy as np
 from keras.layers.convolutional import Convolution2D , Conv2D, MaxPooling2D
@@ -28,19 +27,20 @@ import opt
 from optparse import OptionParser
 from erode_dilate import *
 from tqdm import tqdm
+import time
 from keras.layers.normalization import BatchNormalization
 #import keras.losses
 '''
 parameters
 '''
-parser = OptionParser()
+#parser = OptionParser()
 characters = string.digits + string.ascii_uppercase
 '''
 remove illegel characters including 'I','O','4' in Taiwan.
 '''
-characters = characters.replace('I' , '')
-characters = characters.replace('O' , '')
-characters = characters.replace('4' , '')
+#characters = characters.replace('I' , '')
+#characters = characters.replace('O' , '')
+#characters = characters.replace('4' , '')
 #print(characters)
 n_class = len(characters)
 
@@ -144,8 +144,9 @@ class Evaluate(keras.callbacks.Callback):
         print ('acc: %f%%'%acc)
 
 evaluator = Evaluate()
-
-
+'''
+model building
+'''
 input_tensor = Input((width, height, 3))
 x = input_tensor
 for i in range(3):
@@ -155,24 +156,16 @@ for i in range(3):
     x = BatchNormalization(axis=-1)(x)
     x = MaxPooling2D(pool_size=(2, 2))(x)
 
-
 conv_shape = x.get_shape()
 x = Reshape(target_shape=(int(conv_shape[1]), int(conv_shape[2]*conv_shape[3])))(x)
-
 x = Dense(32, activation='relu')(x)
-
 gru_1 = GRU(opts.rnn_size, return_sequences=True, kernel_initializer="he_normal", name="gru1")(x)
 gru_1b = GRU(opts.rnn_size, go_backwards=True, kernel_initializer="he_normal", name="gru1_b", return_sequences=True)(x)
-
 gru1_merged = add([gru_1, gru_1b])
-
 gru_2 = GRU(opts.rnn_size, return_sequences=True, kernel_initializer="he_normal", name="gru2")(gru1_merged)
 gru_2b = GRU(opts.rnn_size, go_backwards=True, kernel_initializer="he_normal", 
         name="gru2_b", return_sequences=True)(gru1_merged)
-
 x = concatenate([gru_2, gru_2b])
-
-
 x = Dropout(0.25)(x)
 x = Dense(n_class+1, activation="softmax", kernel_initializer="he_normal")(x)
 base_model = Model(inputs=input_tensor, outputs=x)
@@ -182,8 +175,6 @@ label_length = Input(name='label_length', shape=[1], dtype='int64')
 loss_out = Lambda(ctc_lambda_func, output_shape=(1,), 
                                   name='ctc')([x, labels, input_length, label_length])
 
-#sgd = SGD(lr=0.02, decay=1e-6, momentum=0.9, nesterov=True, clipnorm=5)
-
 if(opts.modelname == None):
     model = Model(inputs=[input_tensor, labels, input_length, label_length], outputs=[loss_out]) 
     model.compile(loss={'ctc': lambda y_true, y_pred: y_pred}, optimizer='adadelta')
@@ -191,6 +182,7 @@ if(opts.modelname == None):
 else:
     model = load_model(opts.modelname ,custom_objects = {'<lambda>': lambda y_true, y_pred: y_pred})
     base_model = load_model("base_" +opts.modelname)
+
 '''
 print structure of model
 '''
@@ -204,25 +196,53 @@ if (opts.testing == False):
             callbacks=[EarlyStopping(patience=10), evaluator],
             validation_data=gen(), validation_steps=1280)
 else:
+    #start = time.time()
     print("testing......")
+    print
     characters2 = characters + ' '
     [X_test, y_test, _, _], _  = next(gen(1))
     #cv2.imwrite("./save_image/test.jpg" , X_test)
+    #print("shape of image:"),
+    #print(X_test.shape)
+    #X_test[0] = cv2.imread('ScreenShot.png').transpose(1, 0, 2)
+    #cv2.imwrite('testingoutput.jpg', X_test[0])
+    #print("shape of answer array:"),
+    #print(y_test.shape)
+    start = time.time()
     y_pred = base_model.predict(X_test)
     y_pred = y_pred[:,2:,:]
-    out = K.get_value(K.ctc_decode(y_pred, input_length=np.ones(y_pred.shape[0])*y_pred.shape[1], )[0][0])[:, :7]
+    out = K.get_value(K.ctc_decode(y_pred, input_length=np.ones(y_pred.shape[0])*y_pred.shape[1], )[0][0])[:, :n_len]
     out = ''.join([characters[x] for x in out[0]])
     y_true = ''.join([characters[x] for x in y_test[0]])
     print(out)
     print(y_true)
+    
+    if (out == y_true):
+        print("correct prediction!")
+    else:
+        print("Wrong....")
+    
+    end = time.time()
+    elapsed = end - start
+    print "Testing time take: ", elapsed, "seconds."
+
+
 
 if(opts.modelname == None and opts.testing == False):
     run_name = datetime.datetime.now().strftime('%Y:%m:%d:%H:%M:%S')
     model.save(run_name+".h5")
     base_model.save("base_"+run_name+".h5")
-elif(opts.testing ==True):
+    print("training finish! New model saved.")
+
+elif(opts.modelname==None and opts.testing ==True):
     print("Please input testing model name")
+
+elif(opts.testing == True):
+    print("testing finish!")
+
 else:
     model.save(opts.modelname)
     base_model.save("base_"+opts.modelname)
+    print("training finish!Old model updated")
+
 del model
