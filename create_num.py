@@ -14,6 +14,8 @@ num_map = dict(zip((0,1,2,3,4,5,6,7,8),('0','1','2','3','5','6','7','8','9')))
 
 english_map = dict(zip((0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23),('A','B','C','D','E','F','G','H','J','K','L','M','N','P','Q','R','S','T','U','V','W','X','Y','Z')))
 
+cha_map = dict(zip((0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35),('A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z' , '0','1','2','3','4','5','6','7','8','9')))
+
 resize_zoom = 0.2
 
 def Create_blank(width, height, rgb_color=(255, 255, 255)):
@@ -40,7 +42,11 @@ def GetRandNum(number,digist=True):
             randnum.append(english_map[randint(0,23)])
         return randnum
 
-
+def GetRandCha(number):
+    randcha = []
+    for i in range(number):
+        randcha.append(cha_map[randint(0,35)])
+    return randcha
 
 def CombineImage(blank,element,name):
     w1_start = 0
