@@ -29,16 +29,13 @@ from erode_dilate import *
 from tqdm import tqdm
 import time
 from keras.layers.normalization import BatchNormalization
-#import keras.losses
 '''
 parameters
 '''
-#parser = OptionParser()
+
 characters = string.digits + string.ascii_uppercase +'*'
-'''
-remove illegel characters including 'I','O','4' in Taiwan.
-'''
 #print(characters)
+
 n_class = len(characters)
 
 width , height =  247 , 107     
@@ -60,11 +57,7 @@ def ctc_lambda_func(args):
 image generator
 '''
 def LPNgen(random):
-    #n = GetRandNum(number)
-    #e_n = GetRandNum(english_num,False)
-    #print(n,e_n)
     blankimg = Create_blank(57 * n_len + (n_len-1) * interval , 107)
-
     img = CombineImage(blankimg,random,"characters")
     img = Addhat(img,interval)
     (h,w) = img.shape[:2]
@@ -72,6 +65,7 @@ def LPNgen(random):
         img = Erode(img , 1)
     if opts.dilate:
         img = Dilate(img , 1)
+    
     resize_img = cv2.resize(img, (width ,height), interpolation=cv2.INTER_AREA)
     ran_str = ''.join(random)
     
@@ -87,10 +81,7 @@ generator of model
 def gen(batch_size=32):
     random_len = randint(4 , 7)
     X = np.zeros((batch_size , width, height, 3), dtype=np.uint8)
-    #y = [np.zeros((batch_size, n_class), dtype=np.uint8) for i in range(7)]
     y = np.zeros((batch_size , n_len), dtype=np.uint8)
-    #print("generating data.....")
-    #print (len(y))
     
     while True:
         random_len = randint(4 , 7)
@@ -181,8 +172,9 @@ if (opts.testing == False):
             callbacks=[EarlyStopping(patience=10), evaluator],
             validation_data=gen(), validation_steps=1280)
 else:
-    #start = time.time()
-    w , c = 0 , 0
+    start = time.time()
+    w = 0
+    c = 0
     for i in range(20):
         print("testing......")
         print
@@ -201,6 +193,7 @@ else:
         out = K.get_value(K.ctc_decode(y_pred, input_length=np.ones(y_pred.shape[0])*y_pred.shape[1], )[0][0])[:, :n_len]
         out = ''.join([characters[x] for x in out[0]])
         y_true = ''.join([characters[x] for x in y_test[0]])
+        print
         print("prediction-"),
         print(out),
         print("-")
